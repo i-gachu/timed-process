@@ -9,15 +9,44 @@ from sklearn.ensemble import RandomForestClassifier
 start_counter = time.perf_counter()
 
 # Demo SSID Setup
-ssid = """42["auth",{"session":"5k14jf5q6i4li1hn7jjpqua91t","isDemo":1,"uid":83000567,"platform":2}]"""
+from dotenv import load_dotenv
+import os
+import time
+import json
+from datetime import datetime, timedelta, timezone
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from pocketoptionapi.stable_api import PocketOption
+import pocketoptionapi.global_value as global_value
+
+# Load .env
+load_dotenv()
+
+# Securely load SSID
+ssid = None
+attempts = 0
+while ssid is None and attempts < 30:
+    load_dotenv(override=True)
+    ssid = os.getenv('SSID')
+    if ssid is None:
+        print(f"⏳ Waiting for SSID to become available... {attempts + 1}s")
+        time.sleep(1)
+        attempts += 1
+
+if ssid is None:
+    raise Exception("❌ SSID not found after 30 seconds. Exiting!")
+
+print("✅ SSID loaded successfully.")
+
+# Demo mode and API connection
 demo = True
 
-min_payout = 50
+min_payout = 80
 period = 60  
 expiration = 60
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 4
-MIN_ACTIVE_PAIRS = 1
+MIN_ACTIVE_PAIRS = 5
 
 WATCHLIST = [
     "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
