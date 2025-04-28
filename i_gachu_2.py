@@ -9,36 +9,7 @@ from sklearn.ensemble import RandomForestClassifier
 start_counter = time.perf_counter()
 
 # Demo SSID Setup
-from dotenv import load_dotenv
-import os
-import time
-import json
-from datetime import datetime, timedelta, timezone
-import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from pocketoptionapi.stable_api import PocketOption
-import pocketoptionapi.global_value as global_value
-
-# Load .env
-load_dotenv()
-
-# Securely load SSID
-ssid = None
-attempts = 0
-while ssid is None and attempts < 30:
-    load_dotenv(override=True)
-    ssid = os.getenv('SSID')
-    if ssid is None:
-        print(f"⏳ Waiting for SSID to become available... {attempts + 1}s")
-        time.sleep(1)
-        attempts += 1
-
-if ssid is None:
-    raise Exception("❌ SSID not found after 30 seconds. Exiting!")
-
-print("✅ SSID loaded successfully.")
-
-# Demo mode and API connection
+ssid = """42["auth",{"session":"5k14jf5q6i4li1hn7jjpqua91t","isDemo":1,"uid":83000567,"platform":2}]"""
 demo = True
 
 min_payout = 80
@@ -256,36 +227,13 @@ def prepare():
         return False
 
 def start():
-    wait_seconds = 0
-    while not global_value.websocket_is_connected and wait_seconds < 30:
-        time.sleep(1)
-        wait_seconds += 1
-        global_value.logger(f"⏳ Waiting for WebSocket connection... {wait_seconds}s", "INFO")
-
-    if not global_value.websocket_is_connected:
-        global_value.logger("❌ WebSocket failed to connect after 30 seconds. Exiting.", "ERROR")
-        return
-
-    global_value.logger("✅ WebSocket Connected!", "INFO")
+    while not global_value.websocket_is_connected:
+        time.sleep(0.1)
     time.sleep(2)
 
-    prepare_attempts = 0
-    while prepare_attempts < 10:
-        if prepare():
-            global_value.logger("✅ Preparation done. Starting trading strategy.", "INFO")
-            break
-        else:
-            prepare_attempts += 1
-            global_value.logger(f"⏳ Waiting for PayoutData... attempt {prepare_attempts}/10", "INFO")
-            time.sleep(3)
-
-    if prepare_attempts == 10:
-        global_value.logger("❌ Failed to prepare after 10 attempts. Exiting.", "ERROR")
-        return
-
-    while True:
-        strategie()
-
+    if prepare():
+        while True:
+            strategie()
 
 if __name__ == "__main__":
     start()
