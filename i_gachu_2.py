@@ -256,13 +256,36 @@ def prepare():
         return False
 
 def start():
-    while not global_value.websocket_is_connected:
-        time.sleep(0.1)
+    wait_seconds = 0
+    while not global_value.websocket_is_connected and wait_seconds < 30:
+        time.sleep(1)
+        wait_seconds += 1
+        global_value.logger(f"⏳ Waiting for WebSocket connection... {wait_seconds}s", "INFO")
+
+    if not global_value.websocket_is_connected:
+        global_value.logger("❌ WebSocket failed to connect after 30 seconds. Exiting.", "ERROR")
+        return
+
+    global_value.logger("✅ WebSocket Connected!", "INFO")
     time.sleep(2)
 
-    if prepare():
-        while True:
-            strategie()
+    prepare_attempts = 0
+    while prepare_attempts < 10:
+        if prepare():
+            global_value.logger("✅ Preparation done. Starting trading strategy.", "INFO")
+            break
+        else:
+            prepare_attempts += 1
+            global_value.logger(f"⏳ Waiting for PayoutData... attempt {prepare_attempts}/10", "INFO")
+            time.sleep(3)
+
+    if prepare_attempts == 10:
+        global_value.logger("❌ Failed to prepare after 10 attempts. Exiting.", "ERROR")
+        return
+
+    while True:
+        strategie()
+
 
 if __name__ == "__main__":
     start()
