@@ -9,6 +9,8 @@ from sklearn.ensemble import RandomForestClassifier
 start_counter = time.perf_counter()
 
 # Demo SSID Setup
+
+####I am yet to understand secrets so dont copy my ssid before i figure it out####
 ssid = """42["auth",{"session":"5k14jf5q6i4li1hn7jjpqua91t","isDemo":1,"uid":83000567,"platform":2}]"""
 demo = True
 
