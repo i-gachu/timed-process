@@ -24,10 +24,6 @@ jobs:
       run: |
         unzip pocketoptionapi.zip -d ./
 
-    - name: Create .env file with only SSID
-      run: |
-        echo "SSID=${{ secrets.SSID }}" >> .env
-
     - name: Run Bot
       run: |
         python i_gachu_2.py
