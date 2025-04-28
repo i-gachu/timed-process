@@ -25,7 +25,7 @@ INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 4
 MIN_ACTIVE_PAIRS = 2
 PROB_THRESHOLD = 0.76
-TAKE_PROFIT = 5  # <-- Take profit target in dollars
+TAKE_PROFIT = 10  # <-- Take profit target in dollars
 current_profit = 0  # <-- Current cumulative profit
 
 WATCHLIST = [
@@ -183,8 +183,8 @@ def martingale_strategy(pair, action):
 
     # ✅ Check Take Profit
     if current_profit >= TAKE_PROFIT:
-        global_value.logger(f"🎯 Take Profit Achieved! Cooling down for 1 hour... Final Profit: {current_profit:.2f} USD", "INFO")
-        time.sleep(3600)  # Sleep for 1 hour
+        global_value.logger(f"🎯 Take Profit Achieved! Cooling down for 30 mins... Final Profit: {current_profit:.2f} USD", "INFO")
+        time.sleep(1800)  # Sleep for 30 mins
         current_profit = 0  # Reset profit tracker after cooldown
 
     if result[1] != 'loose':
