@@ -4,33 +4,33 @@ from pocketoptionapi.stable_api import PocketOption
 import pocketoptionapi.global_value as global_value
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from dotenv import load_dotenv
-import os
 
-load_dotenv()
+# Session configuration
 start_counter = time.perf_counter()
-ssid = os.getenv('SSID')
 
-# Other configurations hardcoded for now
+# Demo SSID Setup
+ssid = """42["auth",{"session":"5k14jf5q6i4li1hn7jjpqua91t","isDemo":1,"uid":83000567,"platform":2}]"""
 demo = True
+
 min_payout = 80
-period = 60
+period = 60  
 expiration = 60
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 4
-MIN_ACTIVE_PAIRS = 2
-PROB_THRESHOLD = 0.76
+MIN_ACTIVE_PAIRS = 5
+
 WATCHLIST = [
     "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
     "AUDUSD_otc", "AUDCAD_otc", "CADCHF_otc",
     "USDCHF_otc", "USDJPY_otc", "USDCAD_otc",
 ]
 
+
 api = PocketOption(ssid, demo)
 api.connect()
 
 FEATURE_COLS = ['RSI', 'k_percent', 'r_percent', 'MACD', 'MACD_EMA', 'Price_Rate_Of_Change']
-
+PROB_THRESHOLD = 0.76
 
 def get_payout():
     try:
@@ -169,14 +169,14 @@ def wait_until_next_candle(period_seconds=300, seconds_before=15):
             break
         time.sleep(0.2)
 
-def wait_for_candle_():
+def wait_for_candle_start():
     while True:
         now = datetime.now(timezone.utc)
         if now.second == 0 and now.minute % (period // 60) == 0:
             break
         time.sleep(0.1)
 
-
+# PATCHED STRATEGIE FUNCTION
 def strategie():
     pairs_snapshot = list(global_value.pairs.keys())
 
@@ -208,14 +208,13 @@ def strategie():
         global_value.logger(f"{len(df)} Candles collected for === {pair} === ({period // 60} mins timeframe)", "INFO")
 
         processed_df = prepare_data(df.copy())
-
         if processed_df.empty:
             continue
-        
+
         decision = train_and_predict(processed_df)
 
         if decision:
-            wait_for_candle_()
+            wait_for_candle_start()
             martingale_strategy(pair, decision)
 
             get_payout()
@@ -228,17 +227,8 @@ def prepare():
         return False
 
 def start():
-    wait_seconds = 0
-    while not global_value.websocket_is_connected and wait_seconds < 30:
-        time.sleep(1)
-        wait_seconds += 1
-        global_value.logger(f"⏳ Waiting for WebSocket connection... {wait_seconds}s", "INFO")
-        
-    if not global_value.websocket_is_connected:
-        global_value.logger(f"❌ WebSocket failed to connect after 30 seconds. Exiting.", "ERROR")
-        return
-
-    global_value.logger(f"✅ WebSocket Connected!", "INFO")
+    while not global_value.websocket_is_connected:
+        time.sleep(0.1)
     time.sleep(2)
 
     if prepare():
