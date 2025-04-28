@@ -228,9 +228,18 @@ def prepare():
         return False
 
 def start():
-    while not global_value.websocket_is_connected:
+    wait_seconds = 0
+    while not global_value.websocket_is_connected and wait_seconds < 30:
         time.sleep(1)
-    time.sleep(5)
+        wait_seconds += 1
+        global_value.logger(f"⏳ Waiting for WebSocket connection... {wait_seconds}s", "INFO")
+        
+    if not global_value.websocket_is_connected:
+        global_value.logger(f"❌ WebSocket failed to connect after 30 seconds. Exiting.", "ERROR")
+        return
+
+    global_value.logger(f"✅ WebSocket Connected!", "INFO")
+    time.sleep(2)
 
     if prepare():
         while True:
