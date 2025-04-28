@@ -12,12 +12,12 @@ start_counter = time.perf_counter()
 ssid = """42["auth",{"session":"5k14jf5q6i4li1hn7jjpqua91t","isDemo":1,"uid":83000567,"platform":2}]"""
 demo = True
 
-min_payout = 80
+min_payout = 50
 period = 60  
 expiration = 60
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 4
-MIN_ACTIVE_PAIRS = 5
+MIN_ACTIVE_PAIRS = 1
 
 WATCHLIST = [
     "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
