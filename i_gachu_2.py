@@ -1,13 +1,11 @@
-import time, json
 import os
-from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+import time, json
+from datetime import datetime, timedelta, timezone
 from pocketoptionapi.stable_api import PocketOption
 import pocketoptionapi.global_value as global_value
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-
-
 
 load_dotenv()
 # Session configuration
@@ -17,19 +15,19 @@ start_counter = time.perf_counter()
 ssid = os.getenv("""SSID""")
 demo = True
 
-min_payout = 90
+min_payout = 80
 period = 60  
 expiration = 60
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 4
+MIN_ACTIVE_PAIRS = 5
 
 WATCHLIST = [
-    "EURAUD_otc", "EURCHF_otc", "EURGBP_otc", "EURJPY_otc", "EURUSD_otc",
     "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
-    "AUDCHF_otc", "AUDJPY_otc", "AUDUSD_otc",
-    "CADCHF_otc", "AUDCAD_otc", "CHFJPY_otc",
-    "USDCAD_otc", "USDCHF_otc", "USDCNH_otc", "USDJPY_otc"
+    "AUDUSD_otc", "AUDCAD_otc", "CADCHF_otc",
+    "USDCHF_otc", "USDJPY_otc", "USDCAD_otc",
 ]
+
 
 api = PocketOption(ssid, demo)
 api.connect()
@@ -135,21 +133,14 @@ def train_and_predict(df):
 
     if call_conf > PROB_THRESHOLD:
         decision = "call"
-        emoji = "🟢"
-        confidence = call_conf
     elif put_conf > PROB_THRESHOLD:
         decision = "put"
-        emoji = "🔴"
-        confidence = put_conf
-    else:
-        global_value.logger("⏭️ Confidence too low — skipping trade.", "INFO")
-        return None
 
-    global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%}", "INFO")
+    else:
+        return None
     return decision
 
 def perform_trade(amount, pair, action, expiration):
-    global_value.logger(f"🚀 TRADE: {amount}, {pair}, {action}, {expiration}s", "INFO")
     result = api.buy(amount=amount, active=pair, action=action, expirations=expiration)
     trade_id = result[1]
     time.sleep(expiration)
@@ -163,18 +154,15 @@ def martingale_strategy(pair, action):
     if result is None:
         return
 
-    global_value.logger(f"🎲 RESULT: {result[1].upper()} | Trade ID: {result[0]}", "INFO")
     while result[1] == 'loose' and level < MARTINGALE_LEVEL:
         level += 1
         amount *= 2
-        global_value.logger(f"❌ LOSS - Martingale Level {level} | Next Amount: {amount}", "INFO")
         result = perform_trade(amount, pair, action, expiration)
-        global_value.logger(f"🎲 RESULT: {result[1].upper()} | Trade ID: {result[0]}", "INFO")
 
     if result[1] != 'loose':
         global_value.logger("✅ WIN - Resetting to base amount.", "INFO")
     else:
-        global_value.logger(f"⚠️ Max Martingale level {MARTINGALE_LEVEL} reached. Resetting.", "INFO")
+        global_value.logger("❌ LOSS. Resetting.", "INFO")
 
 def wait_until_next_candle(period_seconds=300, seconds_before=15):
     while True:
@@ -191,31 +179,39 @@ def wait_for_candle_start():
             break
         time.sleep(0.1)
 
-# ✅ PATCHED STRATEGIE FUNCTION
+# PATCHED STRATEGIE FUNCTION
 def strategie():
     pairs_snapshot = list(global_value.pairs.keys())
+
+    if len(pairs_snapshot) < MIN_ACTIVE_PAIRS:
+        time.sleep(60)
+        prepare()
+        return
+
     for i, pair in enumerate(pairs_snapshot, 1):
+        live_pairs = list(global_value.pairs.keys())
+        if len(live_pairs) < MIN_ACTIVE_PAIRS:
+            time.sleep(60)
+            prepare()
+            return
+
         if pair not in global_value.pairs:
-            global_value.logger(f"⚠️ Skipping {pair} — pair no longer in global_value.pairs", "WARNING")
             continue
 
         payout = global_value.pairs[pair].get('payout', 0)
         if payout < min_payout:
-            global_value.logger(f"⛔ Skipping {pair} — payout below threshold: {payout}%", "INFO")
             continue
 
         wait_until_next_candle(period, 15)
 
         df = make_df(global_value.pairs[pair].get('dataframe'), global_value.pairs[pair].get('history'))
         if df is None or df.empty:
-            global_value.logger(f"⚠️ Skipping {pair} — dataframe construction failed or empty.", "WARNING")
             continue
 
         global_value.logger(f"{len(df)} Candles collected for === {pair} === ({period // 60} mins timeframe)", "INFO")
 
         processed_df = prepare_data(df.copy())
         if processed_df.empty:
-            global_value.logger(f"⚠️ Skipping {pair} — processed dataframe is empty.", "WARNING")
             continue
 
         decision = train_and_predict(processed_df)
