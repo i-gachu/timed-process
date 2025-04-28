@@ -169,7 +169,7 @@ def wait_until_next_candle(period_seconds=300, seconds_before=15):
             break
         time.sleep(0.2)
 
-def wait_for_candle_start():
+def wait_for_candle_():
     while True:
         now = datetime.now(timezone.utc)
         if now.second == 0 and now.minute % (period // 60) == 0:
@@ -215,7 +215,7 @@ def strategie():
         decision = train_and_predict(processed_df)
 
         if decision:
-            wait_for_candle_start()
+            wait_for_candle_()
             martingale_strategy(pair, decision)
 
             get_payout()
@@ -229,8 +229,8 @@ def prepare():
 
 def start():
     while not global_value.websocket_is_connected:
-        time.sleep(0.1)
-    time.sleep(2)
+        time.sleep(1)
+    time.sleep(5)
 
     if prepare():
         while True:
