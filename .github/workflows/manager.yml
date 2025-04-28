@@ -27,6 +27,8 @@ jobs:
         unzip pocketoptionapi.zip -d ./
 
 
-    - name: Run Bot
+    - name: Run the bot
+      env:
+        SSID: ${{ secrets.SSID }}
       run: |
         python i_gachu_2.py
