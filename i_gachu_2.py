@@ -7,8 +7,8 @@ from sklearn.ensemble import RandomForestClassifier
 from dotenv import load_dotenv
 import os
 
-start_counter = time.perf_counter()
 load_dotenv()
+start_counter = time.perf_counter()
 ssid = os.getenv('SSID')
 
 # Other configurations hardcoded for now
