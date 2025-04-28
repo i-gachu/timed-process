@@ -8,18 +8,23 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-start_counter = time.perf_counter()
 
 ssid = os.getenv('SSID')
-demo = os.getenv('DEMO', 'True') == 'True'
-min_payout = int(os.getenv('MIN_PAYOUT', 80))
-period = int(os.getenv('PERIOD', 60))
-expiration = int(os.getenv('EXPIRATION', 60))
-INITIAL_AMOUNT = float(os.getenv('INITIAL_AMOUNT', 1))
-MARTINGALE_LEVEL = int(os.getenv('MARTINGALE_LEVEL', 4))
-MIN_ACTIVE_PAIRS = int(os.getenv('MIN_ACTIVE_PAIRS', 5))
-PROB_THRESHOLD = float(os.getenv('PROB_THRESHOLD', 0.76))
-WATCHLIST = [pair.strip() for pair in os.getenv('WATCHLIST', '').split(',')]
+
+# Other configurations hardcoded for now
+demo = True
+min_payout = 80
+period = 60
+expiration = 60
+INITIAL_AMOUNT = 1
+MARTINGALE_LEVEL = 4
+MIN_ACTIVE_PAIRS = 5
+PROB_THRESHOLD = 0.76
+WATCHLIST = [
+    "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
+    "AUDUSD_otc", "AUDCAD_otc", "CADCHF_otc",
+    "USDCHF_otc", "USDJPY_otc", "USDCAD_otc",
+]
 
 api = PocketOption(ssid, demo)
 api.connect()
