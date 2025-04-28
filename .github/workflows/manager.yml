@@ -1,4 +1,4 @@
-name: Run Manually
+name: Run Session Handler Manually
 
 on:
   workflow_dispatch:
@@ -24,18 +24,9 @@ jobs:
       run: |
         unzip pocketoptionapi.zip -d ./
 
-    - name: Create .env file
+    - name: Create .env file with only SSID
       run: |
         echo "SSID=${{ secrets.SSID }}" >> .env
-        echo "DEMO=${{ secrets.DEMO }}" >> .env
-        echo "MIN_PAYOUT=${{ secrets.MIN_PAYOUT }}" >> .env
-        echo "PERIOD=${{ secrets.PERIOD }}" >> .env
-        echo "EXPIRATION=${{ secrets.EXPIRATION }}" >> .env
-        echo "INITIAL_AMOUNT=${{ secrets.INITIAL_AMOUNT }}" >> .env
-        echo "MARTINGALE_LEVEL=${{ secrets.MARTINGALE_LEVEL }}" >> .env
-        echo "MIN_ACTIVE_PAIRS=${{ secrets.MIN_ACTIVE_PAIRS }}" >> .env
-        echo "PROB_THRESHOLD=${{ secrets.PROB_THRESHOLD }}" >> .env
-        echo "WATCHLIST=${{ secrets.WATCHLIST }}" >> .env
 
     - name: Run Bot
       run: |
