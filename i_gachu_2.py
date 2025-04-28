@@ -1,26 +1,32 @@
 import os
+import time
+import json
+import pandas as pd
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
-import time, json
-from datetime import datetime, timedelta, timezone
 from pocketoptionapi.stable_api import PocketOption
 import pocketoptionapi.global_value as global_value
-import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 
+# Load environment variables
 load_dotenv()
+
 # Session configuration
 start_counter = time.perf_counter()
 
-# Demo SSID Setup
 ssid = os.getenv("""SSID""")
 demo = True
 
+# Bot Settings
 min_payout = 80
 period = 60  
 expiration = 60
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 4
-MIN_ACTIVE_PAIRS = 5
+MIN_ACTIVE_PAIRS = 2
+PROB_THRESHOLD = 0.76
+TAKE_PROFIT = 5  # <-- Take profit target in dollars
+current_profit = 0  # <-- Current cumulative profit
 
 WATCHLIST = [
     "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
@@ -28,13 +34,13 @@ WATCHLIST = [
     "USDCHF_otc", "USDJPY_otc", "USDCAD_otc",
 ]
 
-
+# Connect to Pocket Option
 api = PocketOption(ssid, demo)
 api.connect()
 
 FEATURE_COLS = ['RSI', 'k_percent', 'r_percent', 'MACD', 'MACD_EMA', 'Price_Rate_Of_Change']
-PROB_THRESHOLD = 0.76
 
+# Utility Functions
 def get_payout():
     try:
         d = json.loads(global_value.PayoutData)
@@ -43,7 +49,7 @@ def get_payout():
             payout = pair[5]
             if (
                 name in WATCHLIST and
-                pair[14] == True and
+                pair[14] and
                 name.endswith("_otc") and
                 len(name) == 10
             ):
@@ -69,9 +75,7 @@ def make_df(df0, history):
     df1 = pd.DataFrame(history).sort_values(by='time').reset_index(drop=True)
     df1['time'] = pd.to_datetime(df1['time'], unit='s', utc=True)
     df1.set_index('time', inplace=True)
-
     df = df1['price'].resample(f'{period}s').ohlc().reset_index()
-
     if df0 is not None:
         ts = datetime.timestamp(df.loc[0]['time'])
         for x in range(len(df0)):
@@ -132,13 +136,11 @@ def train_and_predict(df):
     put_conf = 1 - call_conf
 
     if call_conf > PROB_THRESHOLD:
-        decision = "call"
+        return "call"
     elif put_conf > PROB_THRESHOLD:
-        decision = "put"
-
+        return "put"
     else:
         return None
-    return decision
 
 def perform_trade(amount, pair, action, expiration):
     result = api.buy(amount=amount, active=pair, action=action, expirations=expiration)
@@ -147,6 +149,8 @@ def perform_trade(amount, pair, action, expiration):
     return api.check_win(trade_id)
 
 def martingale_strategy(pair, action):
+    global current_profit
+
     amount = INITIAL_AMOUNT
     level = 1
     result = perform_trade(amount, pair, action, expiration)
@@ -154,10 +158,34 @@ def martingale_strategy(pair, action):
     if result is None:
         return
 
+    if result[1] == 'win':
+        current_profit += amount * (global_value.pairs[pair]['payout'] / 100)
+        global_value.logger(f"✅ WIN - Profit: {current_profit:.2f} USD", "INFO")
+    else:
+        current_profit -= amount
+        global_value.logger(f"❌ LOSS - Profit: {current_profit:.2f} USD", "INFO")
+
     while result[1] == 'loose' and level < MARTINGALE_LEVEL:
         level += 1
         amount *= 2
         result = perform_trade(amount, pair, action, expiration)
+
+        if result is None:
+            return
+
+        if result[1] == 'win':
+            current_profit += amount * (global_value.pairs[pair]['payout'] / 100)
+            global_value.logger(f"✅ WIN - Profit: {current_profit:.2f} USD", "INFO")
+            break
+        else:
+            current_profit -= amount
+            global_value.logger(f"❌ LOSS - Profit: {current_profit:.2f} USD", "INFO")
+
+    # ✅ Check Take Profit
+    if current_profit >= TAKE_PROFIT:
+        global_value.logger(f"🎯 Take Profit Achieved! Cooling down for 1 hour... Final Profit: {current_profit:.2f} USD", "INFO")
+        time.sleep(3600)  # Sleep for 1 hour
+        current_profit = 0  # Reset profit tracker after cooldown
 
     if result[1] != 'loose':
         global_value.logger("✅ WIN - Resetting to base amount.", "INFO")
@@ -179,7 +207,7 @@ def wait_for_candle_start():
             break
         time.sleep(0.1)
 
-# PATCHED STRATEGIE FUNCTION
+# Strategy loop
 def strategie():
     pairs_snapshot = list(global_value.pairs.keys())
 
@@ -238,6 +266,7 @@ def start():
         while True:
             strategie()
 
+# Main entry
 if __name__ == "__main__":
     start()
     end_counter = time.perf_counter()
