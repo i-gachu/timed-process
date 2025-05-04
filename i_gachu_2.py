@@ -8,24 +8,27 @@ from pocketoptionapi.stable_api import PocketOption
 import pocketoptionapi.global_value as global_value
 from sklearn.ensemble import RandomForestClassifier
 
+
+###RESIPOTORY 6 HOUR LIMIT###
+
 # Load environment variables
 load_dotenv()
 
 # Session configuration
 start_counter = time.perf_counter()
 
-ssid = os.getenv("""SSID""")
+ssid = """42["auth",{"session":"5k14jf5q6i4li1hn7jjpqua91t","isDemo":1,"uid":83000567,"platform":2}]"""
 demo = True
 
 # Bot Settings
 min_payout = 80
-period = 60  
-expiration = 60
+period = 300  
+expiration = 300
 INITIAL_AMOUNT = 1
-MARTINGALE_LEVEL = 4
-MIN_ACTIVE_PAIRS = 2
+MARTINGALE_LEVEL = 3
+MIN_ACTIVE_PAIRS = 5
 PROB_THRESHOLD = 0.76
-TAKE_PROFIT = 5  # <-- Take profit target in dollars
+TAKE_PROFIT = 10  # <-- Take profit target in dollars
 current_profit = 0  # <-- Current cumulative profit
 
 WATCHLIST = [
@@ -160,10 +163,10 @@ def martingale_strategy(pair, action):
 
     if result[1] == 'win':
         current_profit += amount * (global_value.pairs[pair]['payout'] / 100)
-        global_value.logger(f"✅ WIN - Profit: {current_profit:.2f} USD", "INFO")
+        global_value.logger(f" WIN - Profit: {current_profit:.2f} USD", "INFO")
     else:
         current_profit -= amount
-        global_value.logger(f"❌ LOSS - Profit: {current_profit:.2f} USD", "INFO")
+        global_value.logger(f" LOSS - Profit: {current_profit:.2f} USD", "INFO")
 
     while result[1] == 'loose' and level < MARTINGALE_LEVEL:
         level += 1
@@ -183,14 +186,14 @@ def martingale_strategy(pair, action):
 
     # ✅ Check Take Profit
     if current_profit >= TAKE_PROFIT:
-        global_value.logger(f"🎯 Take Profit Achieved! Cooling down for 30 mins... Final Profit: {current_profit:.2f} USD", "INFO")
-        time.sleep(1800)  # Sleep for 30 mins
+        global_value.logger(f"🎯 Take Profit Achieved! Cooling down for 1 hour... Final Profit: {current_profit:.2f} USD", "INFO")
+        time.sleep(3600)  # Sleep for 1 hour
         current_profit = 0  # Reset profit tracker after cooldown
 
     if result[1] != 'loose':
-        global_value.logger("✅ WIN - Resetting to base amount.", "INFO")
+        global_value.logger("WIN - Resetting to base amount.", "INFO")
     else:
-        global_value.logger("❌ LOSS. Resetting.", "INFO")
+        global_value.logger("LOSS. Resetting.", "INFO")
 
 def wait_until_next_candle(period_seconds=300, seconds_before=15):
     while True:
@@ -206,6 +209,10 @@ def wait_for_candle_start():
         if now.second == 0 and now.minute % (period // 60) == 0:
             break
         time.sleep(0.1)
+
+# ✅ New timeout check function
+def near_github_timeout():
+    return (time.perf_counter() - start_counter) >= (6 * 3600 - 20 * 60)
 
 # Strategy loop
 def strategie():
@@ -245,6 +252,9 @@ def strategie():
         decision = train_and_predict(processed_df)
 
         if decision:
+            if near_github_timeout():
+                global_value.logger("🕒 Near GitHub timeout. Skipping new trade to avoid interruption.", "INFO")
+                return
             wait_for_candle_start()
             martingale_strategy(pair, decision)
 
