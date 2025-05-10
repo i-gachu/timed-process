@@ -9,7 +9,7 @@ import pocketoptionapi.global_value as global_value
 from sklearn.ensemble import RandomForestClassifier
 
 
-###RESIPOTORY 6 HOUR LIMIT###
+###RESIPOTORY 6 HOUR LIMIT, avoid ob and os###
 
 # Load environment variables
 load_dotenv()
@@ -17,7 +17,7 @@ load_dotenv()
 # Session configuration
 start_counter = time.perf_counter()
 
-ssid = """42["auth",{"session":"5k14jf5q6i4li1hn7jjpqua91t","isDemo":1,"uid":83000567,"platform":2}]"""
+ssid = os.getenv("""SSID""")
 demo = True
 
 # Bot Settings
@@ -28,7 +28,7 @@ INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 3
 MIN_ACTIVE_PAIRS = 5
 PROB_THRESHOLD = 0.76
-TAKE_PROFIT = 10  # <-- Take profit target in dollars
+TAKE_PROFIT = 20  # <-- Take profit target in dollars
 current_profit = 0  # <-- Current cumulative profit
 
 WATCHLIST = [
@@ -139,11 +139,19 @@ def train_and_predict(df):
     put_conf = 1 - call_conf
 
     if call_conf > PROB_THRESHOLD:
-        return "call"
+        decision = "call"
+        emoji = "🟢"
+        confidence = call_conf
     elif put_conf > PROB_THRESHOLD:
-        return "put"
+        decision = "put"
+        emoji = "🔴"
+        confidence = put_conf
     else:
+        global_value.logger("⏭️ Confidence too low — skipping trade.", "INFO")
         return None
+
+    global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%}", "INFO")
+    return decision
 
 def perform_trade(amount, pair, action, expiration):
     result = api.buy(amount=amount, active=pair, action=action, expirations=expiration)
@@ -163,10 +171,10 @@ def martingale_strategy(pair, action):
 
     if result[1] == 'win':
         current_profit += amount * (global_value.pairs[pair]['payout'] / 100)
-        global_value.logger(f" WIN - Profit: {current_profit:.2f} USD", "INFO")
+        global_value.logger(f"✅ WIN - Profit: {current_profit:.2f} USD", "INFO")
     else:
         current_profit -= amount
-        global_value.logger(f" LOSS - Profit: {current_profit:.2f} USD", "INFO")
+        global_value.logger(f"❌ LOSS - Profit: {current_profit:.2f} USD", "INFO")
 
     while result[1] == 'loose' and level < MARTINGALE_LEVEL:
         level += 1
@@ -212,7 +220,7 @@ def wait_for_candle_start():
 
 # ✅ New timeout check function
 def near_github_timeout():
-    return (time.perf_counter() - start_counter) >= (6 * 3600 - 20 * 60)
+    return (time.perf_counter() - start_counter) >= (6 * 3600 - 14 * 60)
 
 # Strategy loop
 def strategie():
@@ -250,8 +258,14 @@ def strategie():
             continue
 
         decision = train_and_predict(processed_df)
-
+       
+        
         if decision:
+            latest_rsi = processed_df.iloc[-1]['RSI']
+            if (decision == "call" and latest_rsi > 70) or (decision == "put" and latest_rsi < 30):
+                global_value.logger(f"Skipping {decision.upper()} due to RSI filter: RSI = {latest_rsi:.2f}", "INFO")
+                continue
+
             if near_github_timeout():
                 global_value.logger("🕒 Near GitHub timeout. Skipping new trade to avoid interruption.", "INFO")
                 return
