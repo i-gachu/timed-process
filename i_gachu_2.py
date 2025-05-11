@@ -9,7 +9,7 @@ import pocketoptionapi.global_value as global_value
 from sklearn.ensemble import RandomForestClassifier
 
 
-###RESIPOTORY 6 HOUR LIMIT, avoid ob and os###
+###RESIPOTORY 6 HOUR LIMIT, avoid ob and os, with trend, all pairs###
 
 # Load environment variables
 load_dotenv()
@@ -21,12 +21,12 @@ ssid = os.getenv("""SSID""")
 demo = True
 
 # Bot Settings
-min_payout = 80
+min_payout = 90
 period = 300  
-expiration = 300
+expiration = 60
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 3
-MIN_ACTIVE_PAIRS = 5
+MIN_ACTIVE_PAIRS = 20
 PROB_THRESHOLD = 0.76
 TAKE_PROFIT = 20  # <-- Take profit target in dollars
 current_profit = 0  # <-- Current cumulative profit
@@ -138,16 +138,19 @@ def train_and_predict(df):
     call_conf = proba[0][1]
     put_conf = 1 - call_conf
 
-    if call_conf > PROB_THRESHOLD:
+    latest_close = df.iloc[-1]['close']
+    latest_ema26 = df['close'].ewm(span=26).mean().iloc[-1]
+
+    if call_conf > PROB_THRESHOLD and latest_close > latest_ema26:
         decision = "call"
         emoji = "🟢"
         confidence = call_conf
-    elif put_conf > PROB_THRESHOLD:
+    elif put_conf > PROB_THRESHOLD and latest_close < latest_ema26:
         decision = "put"
         emoji = "🔴"
         confidence = put_conf
     else:
-        global_value.logger("⏭️ Confidence too low — skipping trade.", "INFO")
+        global_value.logger("⏭️ Skipping trade due to low confidence or trend mismatch.", "INFO")
         return None
 
     global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%}", "INFO")
@@ -214,13 +217,13 @@ def wait_until_next_candle(period_seconds=300, seconds_before=15):
 def wait_for_candle_start():
     while True:
         now = datetime.now(timezone.utc)
-        if now.second == 0 and now.minute % (period // 60) == 0:
+        if now.second == 0 and now.minute % (expiration // 60) == 0:
             break
         time.sleep(0.1)
 
 # ✅ New timeout check function
 def near_github_timeout():
-    return (time.perf_counter() - start_counter) >= (6 * 3600 - 14 * 60)
+    return (time.perf_counter() - start_counter) >= (6 * 3600 - 20 * 60)
 
 # Strategy loop
 def strategie():
