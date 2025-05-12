@@ -1,4 +1,4 @@
-name: None OB and OS only
+name: OsObtall_10mins_blue
 
 on:
   workflow_dispatch:    # Manual run
