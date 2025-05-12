@@ -9,7 +9,7 @@ import pocketoptionapi.global_value as global_value
 from sklearn.ensemble import RandomForestClassifier
 
 
-###RESIPOTORY 6 HOUR LIMIT, avoid ob and os, with trend, all pairs###
+###RESIPOTORY 6 HOUR LIMIT, avoid ob and os, with trend###
 
 # Load environment variables
 load_dotenv()
@@ -22,20 +22,14 @@ demo = True
 
 # Bot Settings
 min_payout = 90
-period = 300  
-expiration = 60
+period = 600  
+expiration = 600
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 3
-MIN_ACTIVE_PAIRS = 2
+MIN_ACTIVE_PAIRS = 20
 PROB_THRESHOLD = 0.76
 TAKE_PROFIT = 20  # <-- Take profit target in dollars
 current_profit = 0  # <-- Current cumulative profit
-
-WATCHLIST = [
-    "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
-    "AUDUSD_otc", "AUDCAD_otc", "CADCHF_otc",
-    "USDCHF_otc", "USDJPY_otc", "USDCAD_otc",
-]
 
 # Connect to Pocket Option
 api = PocketOption(ssid, demo)
@@ -48,18 +42,15 @@ def get_payout():
     try:
         d = json.loads(global_value.PayoutData)
         for pair in d:
-            name = pair[1]
-            payout = pair[5]
             if (
-                name in WATCHLIST and
-                pair[14] and
-                name.endswith("_otc") and
-                len(name) == 10
+                len(pair) == 19 and
+                pair[14] == True and
+                pair[5] >= min_payout and
+                pair[1].endswith("_otc") and
+                len(pair[1]) == 10
             ):
-                if payout >= min_payout:
-                    global_value.pairs[name] = {'payout': payout, 'type': pair[3]}
-                elif name in global_value.pairs:
-                    del global_value.pairs[name]
+                p = {'payout': pair[5], 'type': pair[3]}
+                global_value.pairs[pair[1]] = p
         return True
     except:
         return False
@@ -150,7 +141,6 @@ def train_and_predict(df):
         emoji = "🔴"
         confidence = put_conf
     else:
-        global_value.logger("⏭️ Skipping trade due to low confidence or trend mismatch.", "INFO")
         return None
 
     global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%}", "INFO")
@@ -217,13 +207,13 @@ def wait_until_next_candle(period_seconds=300, seconds_before=15):
 def wait_for_candle_start():
     while True:
         now = datetime.now(timezone.utc)
-        if now.second == 0 and now.minute % (expiration // 60) == 0:
+        if now.second == 0 and now.minute % (period // 60) == 0:
             break
         time.sleep(0.1)
 
 # ✅ New timeout check function
 def near_github_timeout():
-    return (time.perf_counter() - start_counter) >= (6 * 3600 - 20 * 60)
+    return (time.perf_counter() - start_counter) >= (6 * 3600 - 1 * 60)
 
 # Strategy loop
 def strategie():
