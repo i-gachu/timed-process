@@ -9,8 +9,6 @@ import pocketoptionapi.global_value as global_value
 from sklearn.ensemble import RandomForestClassifier
 
 
-###RESIPOTORY 6 HOUR LIMIT, avoid ob and os, with trend###
-
 # Load environment variables
 load_dotenv()
 
@@ -21,15 +19,21 @@ ssid = os.getenv("""SSID""")
 demo = True
 
 # Bot Settings
-min_payout = 90
+min_payout = 80
 period = 600  
 expiration = 600
 INITIAL_AMOUNT = 1
 MARTINGALE_LEVEL = 3
-MIN_ACTIVE_PAIRS = 20
+MIN_ACTIVE_PAIRS = 2
 PROB_THRESHOLD = 0.76
 TAKE_PROFIT = 20  # <-- Take profit target in dollars
 current_profit = 0  # <-- Current cumulative profit
+
+WATCHLIST = [
+    "GBPAUD_otc", "GBPJPY_otc", "GBPUSD_otc",
+    "AUDUSD_otc", "AUDCAD_otc", "CADCHF_otc",
+    "USDCHF_otc", "USDJPY_otc", "USDCAD_otc",
+]
 
 # Connect to Pocket Option
 api = PocketOption(ssid, demo)
@@ -42,15 +46,18 @@ def get_payout():
     try:
         d = json.loads(global_value.PayoutData)
         for pair in d:
+            name = pair[1]
+            payout = pair[5]
             if (
-                len(pair) == 19 and
-                pair[14] == True and
-                pair[5] >= min_payout and
-                pair[1].endswith("_otc") and
-                len(pair[1]) == 10
+                name in WATCHLIST and
+                pair[14] and
+                name.endswith("_otc") and
+                len(name) == 10
             ):
-                p = {'payout': pair[5], 'type': pair[3]}
-                global_value.pairs[pair[1]] = p
+                if payout >= min_payout:
+                    global_value.pairs[name] = {'payout': payout, 'type': pair[3]}
+                elif name in global_value.pairs:
+                    del global_value.pairs[name]
         return True
     except:
         return False
@@ -131,6 +138,7 @@ def train_and_predict(df):
 
     latest_close = df.iloc[-1]['close']
     latest_ema26 = df['close'].ewm(span=26).mean().iloc[-1]
+    latest_rsi = processed_df.iloc[-1]['RSI']
 
     if call_conf > PROB_THRESHOLD and latest_close > latest_ema26:
         decision = "call"
@@ -143,7 +151,7 @@ def train_and_predict(df):
     else:
         return None
 
-    global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%}", "INFO")
+    global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%} | RSI: {latest_rsi}", "INFO")
     return decision
 
 def perform_trade(amount, pair, action, expiration):
@@ -183,18 +191,17 @@ def martingale_strategy(pair, action):
             break
         else:
             current_profit -= amount
-            global_value.logger(f"❌ LOSS - Profit: {current_profit:.2f} USD", "INFO")
+            global_value.logger(f"LOSS - Profit: {current_profit:.2f} USD", "INFO")
 
-    # ✅ Check Take Profit
     if current_profit >= TAKE_PROFIT:
         global_value.logger(f"🎯 Take Profit Achieved! Cooling down for 1 hour... Final Profit: {current_profit:.2f} USD", "INFO")
         time.sleep(3600)  # Sleep for 1 hour
         current_profit = 0  # Reset profit tracker after cooldown
 
     if result[1] != 'loose':
-        global_value.logger("WIN - Resetting to base amount.", "INFO")
+        global_value.logger("✅ WIN - Resetting to base amount.", "INFO")
     else:
-        global_value.logger("LOSS. Resetting.", "INFO")
+        global_value.logger("❌ LOSS. Resetting.", "INFO")
 
 def wait_until_next_candle(period_seconds=300, seconds_before=15):
     while True:
@@ -252,7 +259,6 @@ def strategie():
 
         decision = train_and_predict(processed_df)
        
-        
         if decision:
             latest_rsi = processed_df.iloc[-1]['RSI']
             if (decision == "call" and latest_rsi > 70) or (decision == "put" and latest_rsi < 30):
