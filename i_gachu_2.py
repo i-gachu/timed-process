@@ -138,7 +138,7 @@ def train_and_predict(df):
 
     latest_close = df.iloc[-1]['close']
     latest_ema26 = df['close'].ewm(span=26).mean().iloc[-1]
-    latest_rsi = processed_df.iloc[-1]['RSI']
+    
 
     if call_conf > PROB_THRESHOLD and latest_close > latest_ema26:
         decision = "call"
@@ -151,7 +151,7 @@ def train_and_predict(df):
     else:
         return None
 
-    global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%} | RSI: {latest_rsi}", "INFO")
+    global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%}", "INFO")
     return decision
 
 def perform_trade(amount, pair, action, expiration):
