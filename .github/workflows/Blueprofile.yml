@@ -1,4 +1,4 @@
-name: OsObtall_10mins_blue
+name: BlueProfile
 
 on:
   workflow_dispatch:    # Manual run
