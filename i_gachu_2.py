@@ -25,7 +25,7 @@ min_payout = 80
 period = 300  
 expiration = 300
 INITIAL_AMOUNT = 1
-MARTINGALE_LEVEL = 3
+MARTINGALE_LEVEL = 4
 MIN_ACTIVE_PAIRS = 5
 PROB_THRESHOLD = 0.76
 TAKE_PROFIT = 20  # <-- Take profit target in dollars
@@ -141,16 +141,16 @@ def train_and_predict(df):
     latest_close = df.iloc[-1]['close']
     latest_ema26 = df['close'].ewm(span=26).mean().iloc[-1]
 
-    if call_conf > PROB_THRESHOLD: 
+    if call_conf > PROB_THRESHOLD and latest_close > latest_ema26:
         decision = "call"
         emoji = "🟢"
         confidence = call_conf
-    elif put_conf > PROB_THRESHOLD:
+    elif put_conf > PROB_THRESHOLD and latest_close < latest_ema26:
         decision = "put"
         emoji = "🔴"
         confidence = put_conf
     else:
-        global_value.logger("⏭️ Skipping trade due to low confidence", "INFO")
+        global_value.logger("⏭️ Skipping trade due to low confidence or trend mismatch.", "INFO")
         return None
 
     global_value.logger(f"{emoji} === PREDICTED: {decision.upper()} | CONFIDENCE: {confidence:.2%}", "INFO")
